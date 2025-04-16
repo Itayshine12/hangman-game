@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🎮 Hangman Deluxe</title>
+  <style>
+    :root {
+      --main-bg: #121212;
+      --primary: #f1c40f;
+      --accent: #3498db;
+      --wrong: #e74c3c;
+      --success: #2ecc71;
+      --text: #ecf0f1;
+      --button: #2c3e50;
+      --button-hover: #34495e;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: var(--main-bg);
+      color: var(--text);
+      text-align: center;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      color: var(--primary);
+      margin-bottom: 20px;
+      text-shadow: 1px 1px 2px black;
+    }
+
+    select, input, button {
+      font-size: 1rem;
+      padding: 10px;
+      margin: 10px 5px;
+      border: none;
+      border-radius: 5px;
+      background-color: var(--button);
+      color: white;
+    }
+
+    button:hover, select:hover {
+      background-color: var(--button-hover);
+      cursor: pointer;
+    }
+
+    #letters button {
+      margin: 5px;
+      padding: 10px 15px;
+      font-size: 1rem;
+      border-radius: 5px;
+      border: none;
+      background-color: var(--accent);
+      color: white;
+    }
+
+    #letters button:hover {
+      background-color: #2980b9;
+    }
+
+    #word {
+      font-size: 2rem;
+      letter-spacing: 10px;
+      margin: 20px auto;
+    }
+
+    #hangman {
+      white-space: pre;
+      font-family: monospace;
+      margin-top: 20px;
+    }
+
+    #message {
+      font-size: 1.5rem;
+      margin: 20px;
+    }
+
+    #message.win {
+      color: var(--success);
+    }
+
+    #message.lose {
+      color: var(--wrong);
+    }
+
+    #play-again {
+      padding: 10px 20px;
+      background-color: var(--success);
+      color: white;
+      display: none;
+    }
+
+    #play-again:hover {
+      background-color: #27ae60;
+    }
+
+    @media (max-width: 600px) {
+      #word {
+        font-size: 1.5rem;
+        letter-spacing: 6px;
+      }
+
+      #letters button {
+        padding: 8px 10px;
+        font-size: 0.9rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🎮 Hangman Deluxe</h1>
+
+  <div>
+    <label for="mode">Mode:</label>
+    <select id="mode" onchange="toggleWordInput()">
+      <option value="single">Single Player</option>
+      <option value="two">Two Players</option>
+    </select>
+
+    <label for="difficulty">Difficulty:</label>
+    <select id="difficulty">
+      <option value="easy">Easy (7 tries)</option>
+      <option value="medium">Medium (6 tries)</option>
+      <option value="hard">Hard (5 tries)</option>
+    </select>
+
+    <input id="word-input" type="text" placeholder="Enter word (hidden)" style="display: none;" />
+  </div>
+
+  <button onclick="startGame()">🚀 Start Game</button>
+
+  <div id="hangman"></div>
+  <div id="word"></div>
+  <div id="letters"></div>
+  <div id="message"></div>
+  <button id="play-again" onclick="startGame()">🔁 Play Again</button>
+
+  <script>
+    const categories = {
+      Animals: ['elephant', 'giraffe', 'lion', 'zebra', 'tiger'],
+      Food: ['pizza', 'burger', 'sushi', 'salad', 'cookie'],
+      Tech: ['python', 'keyboard', 'internet', 'router', 'monitor']
+    };
+
+    const HANGMAN_PICS = [
+      `\n +---+\n     |\n     |\n     |\n    ===`,
+      `\n +---+\n O   |\n     |\n     |\n    ===`,
+      `\n +---+\n O   |\n |   |\n     |\n    ===`,
+      `\n +---+\n O   |\n/|   |\n     |\n    ===`,
+      `\n +---+\n O   |\n/|\\  |\n     |\n    ===`,
+      `\n +---+\n O   |\n/|\\  |\n/    |\n    ===`,
+      `\n +---+\n O   |\n/|\\  |\n/ \\  |\n    ===`
+    ];
+
+    let selectedWord = '';
+    let guessedLetters = [];
+    let wrongGuesses = 0;
+    let maxWrong = 6;
+
+    function toggleWordInput() {
+      const mode = document.getElementById('mode').value;
+      document.getElementById('word-input').style.display = mode === 'two' ? 'inline-block' : 'none';
+    }
+
+    function getMaxAttempts() {
+      const difficulty = document.getElementById('difficulty').value;
+      return difficulty === 'easy' ? 6 : difficulty === 'medium' ? 5 : 4;
+    }
+
+    function chooseRandomWord() {
+      const cats = Object.keys(categories);
+      const cat = cats[Math.floor(Math.random() * cats.length)];
+      const words = categories[cat];
+      return words[Math.floor(Math.random() * words.length)];
+    }
+
+    function displayWord() {
+      const display = selectedWord.split('').map(l => guessedLetters.includes(l) ? l : '_').join(' ');
+      document.getElementById('word').textContent = display;
+    }
+
+    function updateHangman() {
+      document.getElementById('hangman').textContent = HANGMAN_PICS[wrongGuesses];
+    }
+
+    function checkGameStatus() {
+      const msg = document.getElementById('message');
+      if (wrongGuesses > maxWrong) {
+        msg.textContent = `💀 You lost! Word was "${selectedWord}"`;
+        msg.className = "lose";
+        endGame();
+      } else if (selectedWord.split('').every(l => guessedLetters.includes(l))) {
+        msg.textContent = '🎉 You won!';
+        msg.className = "win";
+        endGame();
+      }
+    }
+
+    function endGame() {
+      document.querySelectorAll('#letters button').forEach(btn => btn.disabled = true);
+      document.getElementById('play-again').style.display = 'inline-block';
+    }
+
+    function createLetterButtons() {
+      const letters = document.getElementById('letters');
+      letters.innerHTML = '';
+      for (let i = 65; i <= 90; i++) {
+        const letter = String.fromCharCode(i).toLowerCase();
+        const btn = document.createElement('button');
+        btn.textContent = letter;
+        btn.onclick = () => handleGuess(letter, btn);
+        letters.appendChild(btn);
+      }
+    }
+
+    function handleGuess(letter, button) {
+      button.disabled = true;
+      if (selectedWord.includes(letter)) {
+        guessedLetters.push(letter);
+      } else {
+        wrongGuesses++;
+      }
+      displayWord();
+      updateHangman();
+      checkGameStatus();
+    }
+
+    function startGame() {
+      const mode = document.getElementById('mode').value;
+      const inputWord = document.getElementById('word-input').value.trim().toLowerCase();
+
+      guessedLetters = [];
+      wrongGuesses = 0;
+      maxWrong = getMaxAttempts();
+
+      if (mode === 'two') {
+        if (!/^[a-z]+$/.test(inputWord)) {
+          alert("Please enter a valid word.");
+          return;
+        }
+        selectedWord = inputWord;
+      } else {
+        selectedWord = chooseRandomWord();
+      }
+
+      document.getElementById('message').textContent = '';
+      document.getElementById('play-again').style.display = 'none';
+      document.getElementById('message').className = '';
+      displayWord();
+      updateHangman();
+      createLetterButtons();
+    }
+
+    startGame();
+  </script>
+</body>
+</html>
